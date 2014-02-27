@@ -174,7 +174,8 @@ function encodeAsBinary(obj, callback) {
 }
 
 /**
- * Decodes an ecoded packet string into packet JSON.
+ * Decodes an ecoded packet string into
+ * packet JSON.
  *
  * @param {String} obj - encoded packet
  * @return {Object} packet
