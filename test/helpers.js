@@ -22,6 +22,7 @@ module.exports.test_bin = function test_bin(obj) {
     decoder.on('decoded', function(packet) {
       obj.data = originalData;
       obj.attachments = undefined;
+      if (packet.attachments == 0) packet.attachments = undefined;
       expect(obj).to.eql(packet);
     });
 
