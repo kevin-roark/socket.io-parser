@@ -3,6 +3,7 @@
  */
 
 var isArray = require('isarray');
+var tick = require('./tick');
 
 /**
  * Replaces every Buffer | ArrayBuffer in packet with a numbered placeholder.
@@ -58,8 +59,6 @@ exports.deconstructPacket = function(packet) {
  */
 
  exports.reconstructPacket = function(packet, buffers) {
-    var curPlaceHolder = 0;
-
     function _reconstructPacket(data) {
         if (data && data._placeholder) {
             var buf = buffers[data.num]; // appropriate buffer (should be natural order anyway)
@@ -120,26 +119,31 @@ exports.removeBlobs = function(data, callback) {
       };
 
       fileReader.readAsArrayBuffer(obj); // blob -> arraybuffer
-    }
-
-    if (isArray(obj)) { // handle array
-      return function() {
-        for (var i = 0; i < obj.length; i++) {
-          _removeBlobs(obj[i], i, obj);
-        }
+    } else if (isArray(obj)) { // handle array
+      for (var i = 0; i < obj.length; i++) {
+        tickBlob(obj[i], i, obj);
       }
     } else if (obj && 'object' == typeof obj && !isBuf(obj)) { // and object
-      return function() {
-        for (var key in obj) {
-          _removeBlobs(obj[key], key, obj);
-        }
+      for (var key in obj) {
+        tickBlob(obj[key], key, obj);
       }
     }
   };
 
+  function tickBlob(obj, key, parent) {
+    pendingBlobs++;
+    tick(function() {
+      _removeBlobs(obj, key, parent);
+      if (! --pendingBlobs) {
+        callback(bloblessData);
+      }
+    });
+  }
+
   var pendingBlobs = 0;
   var bloblessData = data;
-  trampoline(_removeBlobs, bloblessData);
+  _removeBlobs(bloblessData);
+
   if (!pendingBlobs) {
     callback(bloblessData);
   }
@@ -154,19 +158,3 @@ function isBuf(obj) {
   return (global.Buffer && Buffer.isBuffer(obj)) ||
          (global.ArrayBuffer && obj instanceof ArrayBuffer);
 }
-
-/**
- * Trampoline implementation inspired by Lemonad.
- *
- * @api private
- */
-function trampoline(fun /*, args */) {
-  var args = Array.prototype.slice.call(arguments);
-  var result = fun.apply(fun, args.slice(1));
-
-  while (typeof result === 'function') {
-    result = result();
-  }
-
-  return result;
-};
